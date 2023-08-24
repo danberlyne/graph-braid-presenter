@@ -14,15 +14,46 @@ import numpy as np
 
 # Takes as input an object of class `Graph`.
 # Returns a graph in the correct format for use in `graph_braid_group()` in `morse_utils.py`.
-def reformat_graph_to_morse(graph):
-    # First get spanning tree and edit adjacency matrix by adding '-1' for edges not in the spanning tree.
-    spanning_tree = graph.get_spanning_tree()
-    spanning_matrix = [[graph.adj_matrix[i][j] for j in range(len(graph.adj_matrix))] for i in range(len(graph.adj_matrix))]
+def reformat_graph_to_morse(graph, num_particles):
+    # First identify a root for the spanning tree.
+    root = get_root(graph)
+    # Next, pick a path of length `num_particles` starting at `root`.
+    rooted_path = get_rooted_path(graph, num_particles, root)
+    # Generate a spanning tree, starting at the end of the rooted path.
+    spanning_tree = graph.get_spanning_tree(rooted_path, rooted_path[0][-1])
+    # Edit adjacency matrix by adding '-1' for edges not in the spanning tree, reordering rows and columns to match the order of the vertices in `spanning_tree[0]`.
+    # Reordering in this way is important to make sure the order agrees with [Farley-Sabalka's vertex ordering](https://arxiv.org/abs/math/0410539).
+    spanning_matrix = [[graph.adj_matrix[spanning_tree[0][i]][spanning_tree[0][j]] for j in range(len(graph.adj_matrix))] for i in range(len(graph.adj_matrix))]
     for edge in [e for e in graph.edges if e not in spanning_tree[1]]:
-        spanning_matrix[edge[0]][edge[1]] = -1
-        spanning_matrix[edge[1]][edge[0]] = -1
+        spanning_matrix[spanning_tree[0].index(edge[0])][spanning_tree[0].index(edge[1])] = -1
+        spanning_matrix[spanning_tree[0].index(edge[1])][spanning_tree[0].index(edge[0])] = -1
+    print(spanning_matrix)
     # Then convert matrix to a NumPy array.
     return np.array(spanning_matrix)
+
+# Returns a vertex of the Graph object `graph` to be used as a root for a spanning tree.
+def get_root(graph):
+    # If all vertices have valence 2, then the graph is a cycle and any vertex can be chosen as the root.
+    if graph.essential_vertices == []:
+        return 0
+    # Otherwise, pick an essential vertex, prioritising vertices of valence 1.
+    else:
+        for v in graph.essential_vertices:
+            if graph.get_degree(v) == 1:
+                return v
+        return graph.essential_vertices[0]
+
+# Returns a path in `graph` of length `num_paticles`, starting at vertex `root`.
+def get_rooted_path(graph, num_particles, root):
+    rooted_path = ([root], [])
+    while len(rooted_path[0]) < num_particles:
+        end_vertex = rooted_path[0][-1]
+        for edge in [e for e in graph.edges if end_vertex in e]: 
+            if edge not in rooted_path[1]:
+                rooted_path[0].append(edge[edge.index(end_vertex) - 1])
+                rooted_path[1].append(edge)
+                break
+    return rooted_path
 
 def print_presentation(gens, rels):
     print("Generators:")
@@ -82,7 +113,7 @@ def compute_presentations(splitting, previous_gbgs):
                         is_new_gbg = False
                         break
                 if is_new_gbg:
-                    arr = reformat_graph_to_morse(factor.graph)
+                    arr = reformat_graph_to_morse(factor.graph, factor.num_particles)
                     gens, rels = graph_braid_group(arr, factor.num_particles)
                     splitting[i] = (gens, rels)
                     previous_gbgs.update({factor: ((gens, rels), True)})
@@ -95,7 +126,7 @@ def compute_presentations(splitting, previous_gbgs):
                         is_new_gbg = False
                         break
                 if is_new_gbg:
-                    arr = reformat_graph_to_morse(factor.graph)
+                    arr = reformat_graph_to_morse(factor.graph, factor.num_particles)
                     gens, rels = graph_braid_group(arr, factor.num_particles)
                     splitting[i] = (gens, rels)
                     previous_gbgs.update({factor: ((gens, rels), False)})
@@ -220,7 +251,7 @@ Do you wish to continue? (y/n)''')
         if type(splitting[0]) != str:
             if type(splitting[0]) != list:
                 print('No splittings found. Computing presentation...')
-                spanning_array = reformat_graph_to_morse(gbg.graph)
+                spanning_array = reformat_graph_to_morse(gbg.graph, gbg.num_particles)
                 gens, rels = graph_braid_group(spanning_array, gbg.num_particles)
                 print('Presentation found.')
                 print_presentation(gens, rels)
@@ -230,7 +261,7 @@ Do you wish to continue? (y/n)''')
                 start_exit_sequence()
             elif len(splitting[0]) == 1 and type(splitting[0][0]) != str:
                 print('No splittings found. Computing presentation...')
-                spanning_array = reformat_graph_to_morse(gbg.graph)
+                spanning_array = reformat_graph_to_morse(gbg.graph, gbg.num_particles)
                 gens, rels = graph_braid_group(spanning_array, gbg.num_particles)
                 print('Presentation found.')
                 print_presentation(gens, rels)

@@ -178,12 +178,13 @@ class Graph:
         return Graph(essential_adj_matrix)
     
     # Returns a spanning tree of the graph as a vertex set, edge set 2-tuple.
-    def get_spanning_tree(self):
+    def get_spanning_tree(self, initial_subgraph = ([0], []), initial_vertex = 0):
         if self.get_num_connected_components() > 1:
             raise ConnectednessException
-        # Initialise the tree using the first vertex of the graph.
-        tree = ([self.vertices[0]],[])
-        self.iterate_tree(tree, self.vertices[0])
+        # Initialise the tree using `initial_subgraph`.
+        tree = ([v for v in initial_subgraph[0]], [e for e in initial_subgraph[1]])
+        # Start the iteration at `initial_vertex`.
+        self.iterate_tree(tree, initial_vertex)
         return tree
     
     def iterate_tree(self, tree, current_vertex):
