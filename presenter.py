@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 # presenter.py - Computes presentations of graph braid groups
 
-from splitting_tools.graph import *
-from splitting_tools.graph_of_groups import *
-from splitting_tools.graph_braid_group import *
-from splitting_tools.splitter import *
-from morse_tools.morse_utils import *
-from morse_tools.graph_utils import *
+from splitting_tools.graph import Graph
+from splitting_tools.graph_braid_group import GraphBraidGroup, is_same
+from splitting_tools.splitter import enter_data_manually, get_data_from_file, VertexException, start_exit_sequence, stringify_factors, combine_strings
+from morse_tools.morse_utils import graph_braid_group
 
-import sys, ast, itertools, copy
-from collections import defaultdict
+import sys
+import itertools
+import copy
 import numpy as np
 
 # Takes as input an object of class `Graph`.
@@ -130,7 +129,7 @@ def compute_presentations(splitting, previous_gbgs):
                     gens, rels = graph_braid_group(arr, factor.num_particles)
                     splitting[i] = (gens, rels)
                     previous_gbgs.update({factor: ((gens, rels), False)})
-        elif type(factor) == list:
+        elif isinstance(factor, list):
             compute_presentations(factor, previous_gbgs)
     return splitting
 
@@ -139,36 +138,36 @@ def compute_presentations(splitting, previous_gbgs):
 def combine_presentations(presentations, is_direct = True):
     for i, factor in enumerate(presentations):
         # If a factor is a list of non-lists, then replace the factor in `presentations` with its combined presentation.
-        if type(factor) == list:
+        if isinstance(factor, list):
             for subfactor in factor:
                 # If we find a list in factor's subfactors, then feed factor back into `combine_strings`.
-                if type(subfactor) == list:
+                if isinstance(subfactor, list):
                     combine_presentations(factor, not is_direct)
                     break
             # If `presentations` is a direct splitting, then `factor` is a free splitting.
             if is_direct:
                 # Collect together F_m terms and Z terms.
-                free_rank = improved_sum(int(subfactor[2:]) for subfactor in factor if type(subfactor) == str and subfactor.startswith('F_')) + len([subfactor for subfactor in factor if subfactor == 'Z'])
+                free_rank = improved_sum(int(subfactor[2:]) for subfactor in factor if isinstance(subfactor, str) and subfactor.startswith('F_')) + len([subfactor for subfactor in factor if subfactor == 'Z'])
                 # Replace F_m and Z terms with their presentations.
-                factor = [([j for j in range(k)], []) for k in [free_rank] if free_rank >= 1] + [subfactor for subfactor in factor if not (type(subfactor) == str and subfactor.startswith('F_')) and not subfactor == 'Z']
+                factor = [([j for j in range(k)], []) for k in [free_rank] if free_rank >= 1] + [subfactor for subfactor in factor if not (isinstance(subfactor, str) and subfactor.startswith('F_')) and not subfactor == 'Z']
                 if len(factor) > 1:
                     # Concatenate the lists of generators, reindexing so we don't have repeats.
                     gens = [f'g{factor[j][0].index(gen) + improved_sum(len(factor[k][0]) for k in range(j))}' for j in range(len(factor)) for gen in factor[j][0]]
                     # Concatenate the relators, replacing any generator substrings with the reindexed versions.
-                    rels = [[(rel[k][0][0] + str(int(rel[k][0][1:]) + improved_sum(len(factor[l][0]) for l in range(j))), rel[k][1]) for k in range(len(rel))] for j in range(len(factor)) for rel in factor[j][1]]
+                    rels = [[(rel[k][0][0] + str(int(rel[k][0][1:]) + improved_sum(len(factor[m][0]) for m in range(j))), rel[k][1]) for k in range(len(rel))] for j in range(len(factor)) for rel in factor[j][1]]
                     presentations[i] = (gens, rels)
                 else:
                     presentations[i] = factor[0]
             else:
                 # Replace F_m and Z terms with their presentations
-                factor = [([j for j in range(int(subfactor[2:]))], []) for subfactor in factor if type(subfactor) == str and subfactor.startswith('F_')] + [([0],[]) for subfactor in factor if subfactor == 'Z'] + [subfactor for subfactor in factor if not (type(subfactor) == str and subfactor.startswith('F_')) and not subfactor == 'Z']
+                factor = [([j for j in range(int(subfactor[2:]))], []) for subfactor in factor if isinstance(subfactor, str) and subfactor.startswith('F_')] + [([0],[]) for subfactor in factor if subfactor == 'Z'] + [subfactor for subfactor in factor if not (isinstance(subfactor, str) and subfactor.startswith('F_')) and not subfactor == 'Z']
                 if len(factor) > 1:
                     # Concatenate the lists of generators, reindexing so we don't have repeats.
                     for j in range(len(factor)):
                         factor[j] = ([f'g{factor[j][0].index(gen) + improved_sum(len(factor[k][0]) for k in range(j))}' for gen in factor[j][0]], factor[j][1])
                     gens = [gen for j in range(len(factor)) for gen in factor[j][0]]
                     # Concatenate the relators, replacing any generator substrings with the reindexed versions, then add extra commutation relators.
-                    rels = [[(rel[k][0][0] + str(int(rel[k][0][1:]) + improved_sum(len(factor[l][0]) for l in range(j))), rel[k][1]) for k in range(len(rel))] for j in range(len(factor)) for rel in factor[j][1]]
+                    rels = [[(rel[k][0][0] + str(int(rel[k][0][1:]) + improved_sum(len(factor[m][0]) for m in range(j))), rel[k][1]) for k in range(len(rel))] for j in range(len(factor)) for rel in factor[j][1]]
                     commutators = [[(a, 1), (b, 1), (a, -1), (b, -1)] for (j, k) in itertools.combinations(range(len(factor)), 2) for a in factor[j][0] for b in factor[k][0]]
                     rels += commutators
                     presentations[i] = (gens, rels)
@@ -248,8 +247,8 @@ Do you wish to continue? (y/n)''')
 
     # If no splittings are found, compute the presentation of the graph braid group as-is.
     if len(splitting) == 1:
-        if type(splitting[0]) != str:
-            if type(splitting[0]) != list:
+        if not isinstance(splitting[0], str):
+            if not isinstance(splitting[0], list):
                 print('No splittings found. Computing presentation...')
                 spanning_array = reformat_graph_to_morse(gbg.graph, gbg.num_particles)
                 gens, rels = graph_braid_group(spanning_array, gbg.num_particles)
@@ -259,7 +258,7 @@ Do you wish to continue? (y/n)''')
                 save_presentation(gens, rels)
                 print('Saved to presentation.txt.')
                 start_exit_sequence()
-            elif len(splitting[0]) == 1 and type(splitting[0][0]) != str:
+            elif len(splitting[0]) == 1 and not isinstance(splitting[0][0], str):
                 print('No splittings found. Computing presentation...')
                 spanning_array = reformat_graph_to_morse(gbg.graph, gbg.num_particles)
                 gens, rels = graph_braid_group(spanning_array, gbg.num_particles)
@@ -300,14 +299,14 @@ Do you wish to continue? (y/n)''')
     combine_presentations(presentations)
     # Finally, combine the presentations of the direct factors to give a presentation of the whole group.
     # First replace F_m and Z terms with their presentations
-    presentations = [([f'g{j}' for j in range(int(factor[2:]))], []) for factor in presentations if type(factor) == str and factor.startswith('F_')] + [([f'g{0}'],[]) for factor in presentations if factor == 'Z'] + [factor for factor in presentations if not (type(factor) == str and factor.startswith('F_')) and not factor == 'Z']
+    presentations = [([f'g{j}' for j in range(int(factor[2:]))], []) for factor in presentations if isinstance(factor, str) and factor.startswith('F_')] + [([f'g{0}'],[]) for factor in presentations if factor == 'Z'] + [factor for factor in presentations if not (isinstance(factor, str) and factor.startswith('F_')) and not factor == 'Z']
     if len(presentations) > 1:
         # Concatenate the lists of generators, reindexing so we don't have repeats.
         for j in range(len(presentations)):
             presentations[j] = ([f'g{presentations[j][0].index(gen) + improved_sum(len(presentations[k][0]) for k in range(j))}' for gen in presentations[j][0]], presentations[j][1])
         final_gens = [gen for j in range(len(presentations)) for gen in presentations[j][0]]
         # Concatenate the relators, replacing any generator substrings with the reindexed versions, then add extra commutation relators.
-        final_rels = [[(rel[k][0][0] + str(int(rel[k][0][1:]) + improved_sum(len(presentations[l][0]) for l in range(j))), rel[k][1]) for k in range(len(rel))] for j in range(len(presentations)) for rel in presentations[j][1]]
+        final_rels = [[(rel[k][0][0] + str(int(rel[k][0][1:]) + improved_sum(len(presentations[m][0]) for m in range(j))), rel[k][1]) for k in range(len(rel))] for j in range(len(presentations)) for rel in presentations[j][1]]
         commutators = [[(a, 1), (b, 1), (a, -1), (b, -1)] for (j, k) in itertools.combinations(range(len(presentations)), 2) for a in presentations[j][0] for b in presentations[k][0]]
         final_rels += commutators
     else:

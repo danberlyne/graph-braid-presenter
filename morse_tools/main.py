@@ -1,11 +1,7 @@
 import numpy as np
-import os
 import matplotlib.pyplot as plt
 
-from graph_utils import *
-from morse_utils import *
-
-import networkx as nx
+from graph_utils import load_graph_from_dataset, group_edges, export_graph_to_dataset, plot_graph
 
 graph = load_graph_from_dataset( 'K3,3', 2 )
 print(graph)

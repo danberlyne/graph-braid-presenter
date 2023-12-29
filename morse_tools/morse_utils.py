@@ -1,7 +1,7 @@
 import itertools as it
 from operator import itemgetter
 
-from morse_tools.graph_utils import *
+from morse_tools.graph_utils import group_edges
 
 
 """
@@ -106,7 +106,7 @@ def no_order_resp_edge(cell, dim, blocked_edges, del_edges):
             if cb[0] == edges_ordered[ic] and cb[1] in cell[dim:]:
                 isblocked = True
                 break
-        if isblocked == False:
+        if not isblocked:
             return (False, edges_ordered[ic])  # returns the minimal o.r. edge
     return (True, None)
 
@@ -174,7 +174,7 @@ def reduction2(letters, exps, criticals1, graph):
             exps_new.append(exps[i])
         elif no_order_resp_edge(letters[i], 1, blocked_edges, del_edges)[0]:
             unblocked = all_vert_blocked(letters[i], 1, tree)
-            if unblocked[0] == False:
+            if not unblocked[0]:
                 match = principal_reduction(letters[i], 1, unblocked[1], tree)
                 bnd = boundary2(match)
                 ib = bnd[0].index(letters[i])
@@ -203,7 +203,7 @@ def reduction2(letters, exps, criticals1, graph):
                 if (
                     v != 1
                     and v < e[1]
-                    and (next((e[0] for e in tree if e[1] == v), None) in flat) == False
+                    and next((e[0] for e in tree if e[1] == v), None) not in flat
                 ):
                     match = principal_reduction(letters[i], 1, v, tree)
                     bnd = boundary2(match)
